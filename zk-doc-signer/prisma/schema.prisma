@@ -1,0 +1,54 @@
+// This is your Prisma schema file
+// Expanded incrementally across phases
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+// Phase 1 — Documents & Signers
+model Document {
+  id          String      @id @default(cuid())
+  name        String
+  sha256Hash  String
+  fileData    Bytes?
+  mimeType    String      @default("application/octet-stream")
+  signingMode String      @default("parallel") // sequential | parallel
+  status      String      @default("pending")  // pending | completed
+  createdAt   DateTime    @default(now())
+  updatedAt   DateTime    @updatedAt
+  signers     Signer[]
+  auditLog    AuditEntry[]
+}
+
+model Signer {
+  id         String     @id @default(cuid())
+  documentId String
+  document   Document   @relation(fields: [documentId], references: [id])
+  name       String
+  email      String
+  publicKey  String     @default("") // SPKI PEM or empty string if pending
+  signature  String?    // hex-encoded ECDSA signature
+  signedAt   DateTime?
+  order      Int?       // for sequential signing
+  status     String     @default("pending") // pending | signed
+  createdAt  DateTime   @default(now())
+}
+
+// Phase 2 — Audit Log
+model AuditEntry {
+  id          String   @id @default(cuid())
+  docId       String
+  document    Document @relation(fields: [docId], references: [id])
+  signerId    String?
+  action      String   // upload | sign | verify | tamper-detected
+  signature   String?
+  timestamp   DateTime @default(now())
+  prevHash    String?
+  entryHash   String
+  merkleRoot  String?
+}
