@@ -85,8 +85,7 @@ with st.sidebar:
 st.markdown('<div class="main-title">Zero-Knowledge Document Signer</div>', unsafe_allow_html=True)
 st.markdown('<div class="sub-title">Cryptographic Multi-Party Signing, Interactive Schnorr ZK Proofs & Tamper-Evident Audit Trails</div>', unsafe_allow_html=True)
 
-# State initialization
-if "keys" not in st.session_state:
+def generate_signer_keypair():
     priv = ec.generate_private_key(ec.SECP256R1())
     pub = priv.public_key()
     priv_pem = priv.private_bytes(
@@ -98,7 +97,16 @@ if "keys" not in st.session_state:
         encoding=serialization.Encoding.PEM,
         format=serialization.PublicFormat.SubjectPublicKeyInfo
     ).decode('utf-8')
-    st.session_state.keys = {"private_key": priv, "public_key": pub, "priv_pem": priv_pem, "pub_pem": pub_pem}
+    return {
+        "private_key": priv,
+        "public_key": pub,
+        "priv_pem": priv_pem,
+        "pub_pem": pub_pem
+    }
+
+# State initialization
+if "signer_keypair" not in st.session_state or not isinstance(st.session_state.signer_keypair, dict) or "pub_pem" not in st.session_state.signer_keypair:
+    st.session_state.signer_keypair = generate_signer_keypair()
 
 if "audit_log" not in st.session_state:
     st.session_state.audit_log = [
@@ -188,22 +196,11 @@ with tabs[1]:
         signer_name = st.text_input("Signer Full Name", value="Alice Partner")
         signer_email = st.text_input("Signer Email", value="alice@example.com")
         if st.button("⚡ Regenerate ECDSA P-256 Key Pair"):
-            priv = ec.generate_private_key(ec.SECP256R1())
-            pub = priv.public_key()
-            st.session_state.keys["private_key"] = priv
-            st.session_state.keys["public_key"] = pub
-            st.session_state.keys["priv_pem"] = priv.private_bytes(
-                encoding=serialization.Encoding.PEM,
-                format=serialization.PrivateFormat.PKCS8,
-                encryption_algorithm=serialization.NoEncryption()
-            ).decode('utf-8')
-            st.session_state.keys["pub_pem"] = pub.public_bytes(
-                encoding=serialization.Encoding.PEM,
-                format=serialization.PublicFormat.SubjectPublicKeyInfo
-            ).decode('utf-8')
+            st.session_state.signer_keypair = generate_signer_keypair()
             st.success("New ECDSA P-256 key pair generated!")
 
-        st.text_area("Signer Public Key (SPKI PEM)", value=st.session_state.keys["pub_pem"], height=130)
+        pub_pem_val = st.session_state.signer_keypair.get("pub_pem", "")
+        st.text_area("Signer Public Key (SPKI PEM)", value=pub_pem_val, height=130)
 
     with sign_col2:
         st.markdown("#### 2. Document Content & Signature")
@@ -212,7 +209,7 @@ with tabs[1]:
         st.markdown(f"**SHA-256 Digest**: `{doc_hash}`")
 
         if st.button("🖋️ Sign Document Hash"):
-            priv = st.session_state.keys["private_key"]
+            priv = st.session_state.signer_keypair["private_key"]
             sig = priv.sign(bytes.fromhex(doc_hash), ec.ECDSA(hashes.SHA256()))
             r, s = decode_dss_signature(sig)
             sig_hex = f"{r:064x}{s:064x}"
@@ -221,7 +218,7 @@ with tabs[1]:
 
         if "last_sig" in st.session_state:
             st.text_area("ECDSA Signature (IEEE P1363 Hex r||s)", value=st.session_state.last_sig, height=80)
-            pub = st.session_state.keys["public_key"]
+            pub = st.session_state.signer_keypair["public_key"]
             try:
                 raw_sig = bytes.fromhex(st.session_state.last_sig)
                 r_int = int(st.session_state.last_sig[:64], 16)
@@ -257,7 +254,7 @@ with tabs[2]:
             import secrets
             k = secrets.randbelow(n - 1) + 1
             # Private scalar x
-            priv_numbers = st.session_state.keys["private_key"].private_numbers()
+            priv_numbers = st.session_state.signer_keypair["private_key"].private_numbers()
             x = priv_numbers.private_value
             # Public point P numbers
             pub_numbers = priv_numbers.public_numbers
