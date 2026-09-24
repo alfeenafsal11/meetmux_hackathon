@@ -26,10 +26,17 @@ A cryptographic document signing, zero-knowledge verification, and tamper-eviden
 
 ---
 
+## 📚 Full Project Documentation
+For exhaustive cryptographic specifications, protocol mathematics, threat models, API references, and architecture diagrams, see:
+👉 **[PROJECT_DOCUMENTATION.md](PROJECT_DOCUMENTATION.md)**
+
+---
+
 ## 📂 Project Structure
 
 ```text
 meetmux_hackathon/
+├── PROJECT_DOCUMENTATION.md # Full cryptographic specification & architecture docs
 ├── streamlit_app.py        # Streamlit interactive cryptographic dashboard & demo
 ├── app.py                  # Streamlit entrypoint
 ├── requirements.txt        # Python dependencies for Streamlit
